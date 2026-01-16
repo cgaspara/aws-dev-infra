@@ -1,24 +1,27 @@
 provider "aws" {
-  region = var.region
+  region = var.aws_region
 }
 
 resource "aws_instance" "windows_vm" {
-  ami           = var.ami_id
-  instance_type = var.instance_type
-  key_name      = var.key_name
+  ami                         = var.ami_id
+  instance_type               = var.instance_type
+  key_name                    = var.key_name
+  subnet_id                   = var.subnet_id
+  associate_public_ip_address = true
 
   vpc_security_group_ids = [var.security_group_id]
-  subnet_id              = var.subnet_id
 
   tags = {
-    Name = var.instance_name
+    Name = "windows-sql-dev"
   }
 
-  root_block_device {
-    volume_size = 30
-    volume_type = "gp2"
-  }
-
-  # Optional: Add user_data for bootstrapping
-  # user_data = file("bootstrap.ps1")
+  user_data = <<-EOF
+              <powershell>
+              # Enable WinRM
+              winrm quickconfig -q
+              winrm set winrm/config/service/auth '@{Basic="true"}'
+              winrm set winrm/config/service '@{AllowUnencrypted="true"}'
+              netsh advfirewall firewall add rule name="WinRM HTTP" dir=in action=allow protocol=TCP localport=5985
+              </powershell>
+              EOF
 }
